@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Gold Watch — Live Ranking</title>
+<style>
+  :root{
+    --bg:#14161c; --panel:#1c2030; --panel2:#232838; --ink:#f2efe6;
+    --muted:#9aa0b4; --line:#333a4d;
+    --gold:#d4af5a; --gold-soft:#e6c878; --gold-deep:#b08a2e;
+    --good:#5fb98a; --bad:#d9694e; --accent:#8aa0ff; --accent-deep:#5b6fd6;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:20px 18px 60px;}
+  h1,h2,h3{font-family:"Georgia","Times New Roman",serif;font-weight:600;margin:0;}
+  .serif{font-family:"Georgia",serif;}
+  .gold{color:var(--gold);} .muted{color:var(--muted);} .center{text-align:center;}
+  .hidden{display:none !important;}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;font-size:15px;}
+  .btn{background:var(--gold);color:#241c08;font-weight:700;padding:14px 20px;border-radius:12px;
+    transition:transform .08s ease,filter .15s ease;letter-spacing:.2px;}
+  .btn:hover{filter:brightness(1.06);} .btn:active{transform:translateY(1px);}
+  .btn.block{display:block;width:100%;}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:600;}
+  .btn.small{padding:9px 14px;font-size:13.5px;border-radius:10px;}
+  .btn.gray{background:var(--panel2);color:var(--ink);font-weight:600;}
+  .field{width:100%;padding:14px 16px;border-radius:12px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--ink);font-size:16px;outline:none;}
+  .field:focus{border-color:var(--gold);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);}
+  .pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    padding:5px 11px;border-radius:999px;background:var(--panel2);color:var(--gold-soft);border:1px solid var(--line);}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .watch{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;
+    justify-content:center;color:var(--gold);font-size:16px;box-shadow:inset 0 0 0 3px #1a1d27;}
+  .roomtag{font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:2px;color:var(--gold-soft);}
+  .hero{text-align:center;padding:36px 8px 10px;}
+  .hero h1{font-size:38px;line-height:1.05;}
+  .hero p{color:var(--muted);max-width:540px;margin:14px auto 0;font-size:15.5px;line-height:1.5;}
+  .rolegrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px;}
+  @media(max-width:560px){.rolegrid{grid-template-columns:1fr;}.hero h1{font-size:30px;}}
+  .role{padding:22px;border-radius:18px;background:var(--panel);border:1px solid var(--line);text-align:left;
+    transition:border-color .15s ease;}
+  .role:hover{border-color:var(--gold);}
+  .role h3{font-size:20px;margin-bottom:6px;} .role .em{font-size:26px;margin-bottom:8px;}
+  .scale{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin:6px 4px 12px;font-weight:600;}
+  ul.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  li.item{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:14px;padding:12px 12px 12px 14px;touch-action:none;user-select:none;
+    transition:box-shadow .12s ease,border-color .12s ease;}
+  li.item.dragging{border-color:var(--gold);box-shadow:0 12px 26px rgba(0,0,0,.45);opacity:.96;}
+  .pos{width:30px;height:30px;flex:none;border-radius:9px;background:#11131a;color:var(--gold-soft);display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;border:1px solid var(--line);}
+  .who{flex:1;min-width:0;} .who .nm{font-weight:700;font-size:16px;} .who .ds{color:var(--muted);font-size:12.8px;line-height:1.35;margin-top:2px;}
+  .arrows{display:flex;flex-direction:column;gap:4px;flex:none;}
+  .arrows button{width:34px;height:24px;background:#11131a;border:1px solid var(--line);color:var(--ink);border-radius:7px;
+    font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .arrows button:active{background:var(--gold);color:#241c08;}
+  .grip{flex:none;color:var(--muted);font-size:18px;padding:0 2px;cursor:grab;}
+  .statrow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .stat{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+  .stat .big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .stat .lbl{color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
+  .bars{display:flex;flex-direction:column;gap:14px;margin-top:6px;}
+  .bar .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .bar .head .nm{font-weight:700;font-size:16px;} .bar .head .val{font-variant-numeric:tabular-nums;color:var(--gold-soft);font-weight:700;font-size:15px;}
+  .track{height:18px;background:#11131a;border-radius:999px;overflow:hidden;border:1px solid var(--line);}
+  .fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-soft));transition:width .6s cubic-bezier(.2,.7,.2,1);width:0;}
+  .fill.r2{background:linear-gradient(90deg,var(--accent-deep),var(--accent));}
+  .cmp{display:flex;flex-direction:column;gap:12px;}
+  .cmprow{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;}
+  .cmprow .nm{font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline;}
+  .delta{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .mini{height:10px;background:#11131a;border-radius:999px;overflow:hidden;border:1px solid var(--line);margin:4px 0;}
+  .mini .f{height:100%;border-radius:999px;}
+  .legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin:4px 2px 8px;}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}
+  .ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line);}
+  .phasebadge{font-size:12.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);}
+  .tabs{display:flex;gap:6px;background:var(--panel2);padding:5px;border-radius:12px;margin-bottom:16px;width:fit-content;flex-wrap:wrap;}
+  .tabs button{padding:8px 16px;border-radius:9px;background:transparent;color:var(--muted);font-weight:700;font-size:13.5px;}
+  .tabs button.on{background:var(--gold);color:#241c08;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--panel);
+    border:1px solid var(--gold);color:var(--ink);padding:12px 20px;border-radius:12px;box-shadow:var(--shadow);opacity:0;
+    transition:all .3s ease;font-weight:600;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .help{font-size:13px;color:var(--muted);line-height:1.6;}
+  .help code{background:#11131a;padding:2px 6px;border-radius:6px;color:var(--gold-soft);font-size:12px;}
+  a{color:var(--gold-soft);}
+  .footnote{margin-top:26px;text-align:center;font-size:12px;color:var(--muted);}
+  .modebadge{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;}
+  .waitbox{text-align:center;padding:40px 16px;}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--gold);margin:0 auto 16px;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .done{text-align:center;padding:28px 10px;}
+  .done .chk{width:60px;height:60px;border-radius:50%;background:rgba(95,185,138,.15);border:2px solid var(--good);color:var(--good);
+    font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+  table.roster{width:100%;border-collapse:collapse;font-size:14px;}
+  table.roster th{text-align:left;color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;
+    padding:8px 10px;border-bottom:1px solid var(--line);}
+  table.roster td{padding:9px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+  .tag{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-block;}
+  .tag.yes{background:rgba(217,105,78,.16);color:#f0997b;border:1px solid rgba(217,105,78,.4);}
+  .tag.no{background:rgba(95,185,138,.14);color:var(--good);border:1px solid rgba(95,185,138,.35);}
+  .tag.miss{background:#1a1d27;color:var(--muted);border:1px solid var(--line);}
+  .tag.ok{background:rgba(212,175,90,.14);color:var(--gold-soft);border:1px solid rgba(212,175,90,.35);}
+  .torlegend{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:8px 2px 14px;}
+  .tor{display:flex;flex-direction:column;gap:10px;}
+  .torrow{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px;}
+  .torrow.contested{border-color:#4a4326;}
+  .torside{flex:1;display:flex;flex-wrap:wrap;gap:5px;min-width:0;}
+  .torside.l{justify-content:flex-end;}
+  .torside.r{justify-content:flex-start;}
+  .torname{flex:none;width:90px;text-align:center;font-weight:700;font-size:14px;}
+  .torname.c{color:var(--gold-soft);}
+  .torname small{display:block;font-size:9.5px;color:var(--muted);font-weight:400;}
+  .chip{font-size:11.8px;padding:3px 8px;border-radius:999px;white-space:nowrap;border:1px solid;}
+  .chip.l{background:rgba(95,185,138,.14);border-color:rgba(95,185,138,.35);color:#7fcfa3;}
+  .chip.m{background:rgba(217,105,78,.16);border-color:rgba(217,105,78,.4);color:#f0997b;}
+  .myname{font-size:12.5px;color:var(--muted);}
+  .editlink{color:var(--gold-soft);cursor:pointer;text-decoration:underline;font-size:12.5px;}
+  #goPresent h3, #goJoin h3 { color: #ffffff; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================================
+   THE GOLD WATCH — LIVE RANKING  (laptop + phone, Zoom-friendly)
+   Students enter their name ONCE; both rounds are tracked under that identity,
+   so you get participation per round and can see exactly who changed their
+   ranking between Round 1 (initial) and Round 2 (after discussion).
+
+   ── MAKE IT LIVE ──
+   1. Create a free Firebase project + Realtime Database (see setup guide).
+   2. Paste your config into FIREBASE_CONFIG below.
+   3. Host this file and share the link (works great in the Zoom chat).
+   Leave FIREBASE_CONFIG as {} for OFFLINE DEMO MODE: open in two browser tabs
+   on one computer (one "Present", one "Join") and they sync live.
+   ========================================================================== */
+
+const FIREBASE_CONFIG = {
+  "apiKey": "AIzaSyCfrU1MHutjE2CY7CLGi8OMxf-ZB8c9AUA",
+  "authDomain": "gold-watch-classroom-app.firebaseapp.com",
+  "databaseURL": "https://gold-watch-classroom-app-default-rtdb.firebaseio.com",
+  "projectId": "gold-watch-classroom-app",
+  "appId": "1:34072755847:web:5968dd4bd323c4fbd84222"
+};
+
+const CHARACTERS = [
+  { id:"john",      name:"John",      desc:"The salesperson. Considered buying the watch to land a deal." },
+  { id:"fenton",    name:"Fenton",    desc:"The client. Hinted the watch would help close the deal." },
+  { id:"stephanie", name:"Stephanie", desc:"John’s boss. Refused company funds; fired John after Jane’s report." },
+  { id:"terry",     name:"Terry",     desc:"John’s colleague. Suggested using personal, not company, money." },
+  { id:"gray",      name:"Mr. Gray",  desc:"The banker and family friend. Approved the loan for the watch." },
+  { id:"jane",      name:"Jane",      desc:"The coworker. Spotted John at the jeweler and told Stephanie." },
+];
+const NAMES = Object.fromEntries(CHARACTERS.map(c=>[c.id,c.name]));
+const ROUND_LABEL = { r1:"Round 1 · Initial vote", r2:"Round 2 · After discussion" };
+
+/* =========================== DATA STORES =================================== */
+/* state = { phase, votes:{ r1:[v], r2:[v] } }   phase: lobby|r1|r1Reveal|r2|r2Reveal
+   vote  = { sid, name, ranks:{id:pos}, ts }                                    */
+const FB_ON = !!(FIREBASE_CONFIG && FIREBASE_CONFIG.databaseURL);
+
+function makeLocalStore(room){
+  const key="goldwatch:"+room;
+  const ch=("BroadcastChannel" in window)?new BroadcastChannel("goldwatch:"+room):null;
+  let listeners=[];
+  const blank=()=>({phase:"lobby",votes:{r1:[],r2:[]}});
+  const read=()=>{ try{return JSON.parse(localStorage.getItem(key))||blank();}catch(e){return blank();} };
+  const fire=s=>listeners.forEach(cb=>cb(s));
+  const write=s=>{ localStorage.setItem(key,JSON.stringify(s)); fire(s); if(ch)ch.postMessage("u"); };
+  if(ch) ch.onmessage=()=>fire(read());
+  window.addEventListener("storage",e=>{ if(e.key===key)fire(read()); });
+  return {
+    mode:"demo",
+    onState(cb){ listeners.push(cb); cb(read()); },
+    setPhase(p){ const s=read(); s.phase=p; write(s); },
+    addVote(round,vote){ const s=read(); s.votes[round]=(s.votes[round]||[]).filter(v=>v.sid!==vote.sid); s.votes[round].push(vote); write(s); },
+    reset(){ write(blank()); }
+  };
+}
+function makeFirebaseStore(room){
+  const base=firebase.database().ref("rooms/"+room);
+  const mine=firebase.auth().currentUser.uid;
+  const state={phase:"lobby",votes:{r1:[],r2:[]}};
+  let notify=()=>{};
+  const report=()=>notify({phase:state.phase,votes:{r1:[...state.votes.r1],r2:[...state.votes.r2]}});
+  const error=()=>toast("Connection or permission error. Please try again.");
+  return {
+    mode:"live",
+    onState(cb){
+      notify=cb;
+      base.child("phase").on("value",snap=>{state.phase=snap.val()||"lobby"; report();},error);
+      for(const round of ["r1","r2"]){
+        const ref=base.child("votes/"+round+(App.role==="present"?"":"/"+mine));
+        ref.on("value",snap=>{const v=snap.val();state.votes[round]=App.role==="present"?Object.values(v||{}):(v?[v]:[]);report();},error);
+      }
+    },
+    setPhase(p){return base.child("phase").set(p).catch(error);},
+    async addVote(round,vote){
+      const session=(await base.child("session").once("value")).val();
+      if(!session)throw new Error("Wait for your instructor to open the room.");
+      return base.child("votes/"+round+"/"+mine).set({...vote,sid:mine,session,ts:firebase.database.ServerValue.TIMESTAMP});
+    },
+    reset(){return base.set({phase:"lobby",session:crypto.randomUUID()}).catch(error);}
+  };
+}
+
+/* =========================== APP STATE ===================================== */
+const App={ el:document.getElementById("app"), store:null, room:null, role:null,
+            state:{phase:"lobby",votes:{r1:[],r2:[]}}, student:null, myOrder:null, view:"results" };
+
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+function topbar(){
+  const live=App.store&&App.store.mode==="live";
+  return `<div class="topbar">
+    <div class="brand"><div class="watch">⌚</div>
+      <div><div class="serif" style="font-size:17px;font-weight:600">The Gold Watch</div>
+      <div class="muted" style="font-size:11.5px;letter-spacing:.5px">LIVE RANKING</div></div></div>
+    <div style="text-align:right">
+      <div class="roomtag">${App.room?("ROOM "+App.room):""}</div>
+      <div class="modebadge">${live?"● live":"○ demo mode"}</div>
+    </div></div>`;
+}
+
+/* =========================== LANDING ====================================== */
+function renderLanding(){
+  let last=null; try{ last=JSON.parse(localStorage.getItem("goldwatch:last")); }catch(e){}
+  let prof=null; try{ prof=JSON.parse(localStorage.getItem("goldwatch:profile")); }catch(e){}
+  const defRoom=(last&&last.room)?last.room:"MO101";
+  const resume=(last&&last.room)
+    ? `<button class="btn block" id="resumeBtn" style="margin-bottom:14px">↩ Resume room ${esc(last.room)}${(last.role==="join"&&prof&&prof.name)?(" as "+esc(prof.name)):(" · "+(last.role==="present"?"Present":"Join"))}</button>`
+    : "";
+  App.el.innerHTML=`
+  <div class="hero">
+    <div class="watch" style="margin:0 auto 16px;width:54px;height:54px;font-size:26px">⌚</div>
+    <h1>The Gold Watch</h1>
+    <p>Rank the six characters from least to most objectionable. You’ll vote twice —
+       once now, and again after discussion — so we can see who changes their mind.</p>
+  </div>
+  <div class="card" style="margin-top:22px">
+    ${resume}
+    <label class="muted" style="font-size:13px;font-weight:600">Room code</label>
+    <input id="room" class="field" style="margin-top:6px;text-transform:uppercase;letter-spacing:4px;font-weight:700"
+       maxlength="6" placeholder="MO101" value="${esc(defRoom)}" />
+    <div class="rolegrid">
+      <button class="role" id="goPresent"><div class="em">🖥️</div><h3>Present</h3>
+        <div class="muted" style="font-size:13.5px">Projector view + instructor controls. Share your screen on Zoom.</div></button>
+      <button class="role" id="goJoin"><div class="em">💻</div><h3>Join &amp; vote</h3>
+        <div class="muted" style="font-size:13.5px">For students, on laptop or phone. Enter your name once.</div></button>
+    </div>
+  </div>
+  <div class="footnote">Management &amp; Organizations · Conflict session</div>`;
+  document.getElementById("goPresent").onclick=()=>start("present");
+  document.getElementById("goJoin").onclick=()=>start("join");
+  const rb=document.getElementById("resumeBtn"); if(rb) rb.onclick=()=>start(last.role,last.room);
+}
+
+async function start(role, roomOverride){
+  if(App.starting)return;
+  let room=(roomOverride||document.getElementById("room")?.value||"MO101").trim().toUpperCase();
+  if(!/^[A-Z0-9]{3,6}$/.test(room)){toast("Use a room code of 3–6 letters or numbers.");return;}
+  App.starting=true;
+  try{
+    if(FB_ON){
+      const auth=firebase.auth();
+      if(role==="present"){
+        if(!auth.currentUser||auth.currentUser.isAnonymous){
+          await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        }
+        const allowed=await firebase.database().ref("instructors/"+auth.currentUser.uid).once("value");
+        if(allowed.val()!==true)throw new Error("This account is not authorized as an instructor.");
+        const base=firebase.database().ref("rooms/"+room);
+        await base.transaction(v=>v||{phase:"lobby",session:crypto.randomUUID()});
+      }else if(!auth.currentUser){await auth.signInAnonymously();}
+    }
+    App.room=room; App.role=role;
+    App.store=FB_ON?makeFirebaseStore(room):makeLocalStore(room);
+    if(role==="join"){
+      try{App.student=JSON.parse(localStorage.getItem("goldwatch:profile"))||null;}catch(e){App.student=null;}
+      if(App.student&&FB_ON){App.student.sid=firebase.auth().currentUser.uid;saveStudent();}
+    }
+    try{localStorage.setItem("goldwatch:last",JSON.stringify({room,role}));}catch(e){}
+    App.store.onState(s=>{App.state=s;rerender();});
+    rerender();
+  }catch(e){toast(e.message||"Could not connect. Please try again.");}
+  finally{App.starting=false;}
+}
+
+/* =========================== JOIN (student) =============================== */
+function defaultOrder(){ return CHARACTERS.map(c=>c.id); }
+function saveStudent(){ localStorage.setItem("goldwatch:profile", JSON.stringify(App.student)); }
+function mySubmission(round){
+  if(!App.student) return null;
+  return (App.state.votes[round]||[]).find(v=>v.sid===App.student.sid)||null;
+}
+
+function renderJoin(){
+  if(!App.student){ renderNameGate(); return; }
+  const phase=App.state.phase;
+  let inner;
+  if(phase==="lobby"){
+    inner=waitBox(`Thanks, ${esc(App.student.name)} — you’re checked in. Waiting for your instructor to start Round 1…`, true);
+  } else if(phase==="r1Reveal"||phase==="r2Reveal"){
+    inner=waitBox("Results are on the screen. Sit tight for the next step.", true);
+  } else {
+    const round=phase; // r1 or r2
+    inner = mySubmission(round) ? doneBox(round) : rankingForm(round);
+  }
+  App.el.innerHTML=topbar()+inner;
+  const phase2=App.state.phase;
+  if((phase2==="r1"||phase2==="r2") && !mySubmission(phase2)) wireRanking(phase2);
+  const ed=document.getElementById("editName"); if(ed) ed.onclick=()=>{ renderNameGate(true); };
+}
+
+function renderNameGate(isEdit){
+  App.el.innerHTML=topbar()+`<div class="card">
+    <span class="pill">Step 1 of 2</span>
+    <h2 style="font-size:22px;margin:12px 0 4px">Enter your name to begin</h2>
+    <div class="muted" style="font-size:13.5px">You only do this once. It links both of your votes so participation is recorded.</div>
+    <input id="nameIn" class="field" style="margin-top:14px" maxlength="40" placeholder="First and last name"
+       value="${App.student?esc(App.student.name):""}"/>
+    <button class="btn block" id="saveName" style="margin-top:16px">Continue</button>
+  </div>`;
+  const inp=document.getElementById("nameIn"); inp.focus();
+  const go=()=>{
+    const nm=(inp.value||"").trim();
+    if(nm.length<2){ toast("Please enter your name."); return; }
+    if(!App.student) App.student={sid:FB_ON?firebase.auth().currentUser.uid:uid(), name:nm}; else App.student.name=nm;
+    saveStudent(); renderJoin();
+  };
+  document.getElementById("saveName").onclick=go;
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
+}
+
+function waitBox(msg,showName){
+  return `<div class="card"><div class="waitbox"><div class="spinner"></div>
+    <div style="font-size:16px;font-weight:600;max-width:420px;margin:0 auto">${msg}</div>
+    ${showName?`<div class="myname" style="margin-top:14px">Signed in as <b style="color:var(--ink)">${esc(App.student.name)}</b> · <span class="editlink" id="editName">edit</span></div>`:""}
+    </div></div>`;
+}
+function doneBox(round){
+  const other = round==="r1" ? "Round 2 (after discussion)" : "Round 1";
+  return `<div class="card"><div class="done"><div class="chk">✓</div>
+    <h2 style="font-size:22px">${ROUND_LABEL[round].split("·")[0].trim()} submitted</h2>
+    <div class="muted" style="margin-top:8px;max-width:420px;margin-left:auto;margin-right:auto">
+      Recorded for <b style="color:var(--ink)">${esc(App.student.name)}</b>. ${round==="r1"?"Watch the class results on the screen. You’ll vote again after discussion.":"You have completed both rounds. Thank you!"}</div>
+    </div></div>`;
+}
+
+function rankingForm(round){
+  // Round 2 starts from the student's Round 1 order (so "changing" is a deliberate act)
+  if(!App.myOrder){
+    const prev = round==="r2" ? mySubmissionAnyRound("r1") : null;
+    App.myOrder = prev ? orderFromRanks(prev.ranks) : defaultOrder();
+  }
+  const r2=round==="r2";
+  const items=App.myOrder.map((id,i)=>{
+    const c=CHARACTERS.find(x=>x.id===id);
+    return `<li class="item" data-id="${id}">
+      <span class="grip">⋮⋮</span><span class="pos">${i+1}</span>
+      <div class="who"><div class="nm">${c.name}</div><div class="ds">${c.desc}</div></div>
+      <span class="arrows"><button data-dir="up" aria-label="up">▲</button><button data-dir="down" aria-label="down">▼</button></span>
+    </li>`;
+  }).join("");
+  return `<div class="card">
+    <span class="pill">${ROUND_LABEL[round]}</span>
+    <h2 style="font-size:21px;margin:12px 0 4px">Rank the characters</h2>
+    <div class="muted" style="font-size:13.5px">Drag, or use ▲▼, to order them. <b>1 = least objectionable</b>, <b>6 = most</b>.
+      ${r2?" This starts from your first ranking — change it only if discussion changed your mind.":""}</div>
+    <div class="scale"><span>↑ 1 — Least objectionable</span><span>Most — 6 ↓</span></div>
+    <ul class="rank" id="ranklist">${items}</ul>
+    <button class="btn block" id="submitRank" style="margin-top:16px">Submit ${r2?"my final ranking":"my ranking"}</button>
+    <div class="myname center" style="margin-top:10px">Signed in as <b style="color:var(--ink)">${esc(App.student.name)}</b></div>
+  </div>`;
+}
+function mySubmissionAnyRound(round){ return (App.state.votes[round]||[]).find(v=>App.student&&v.sid===App.student.sid)||null; }
+function orderFromRanks(ranks){ return CHARACTERS.map(c=>c.id).sort((a,b)=>(ranks[a]||0)-(ranks[b]||0)); }
+
+function wireRanking(round){
+  const list=document.getElementById("ranklist");
+  list.querySelectorAll(".arrows button").forEach(b=>{
+    b.onclick=()=>{ const li=b.closest("li"); const id=li.dataset.id; const i=App.myOrder.indexOf(id);
+      const j=b.dataset.dir==="up"?i-1:i+1; if(j<0||j>=App.myOrder.length)return;
+      [App.myOrder[i],App.myOrder[j]]=[App.myOrder[j],App.myOrder[i]]; renderJoin(); };
+  });
+  let dragEl=null;
+  list.querySelectorAll("li.item").forEach(li=>{
+    li.addEventListener("pointerdown",e=>{ if(e.target.closest(".arrows"))return;
+      dragEl=li; li.setPointerCapture(e.pointerId); li.classList.add("dragging"); });
+    li.addEventListener("pointermove",e=>{ if(dragEl!==li)return;
+      const sibs=[...list.querySelectorAll("li.item")];
+      const after=sibs.find(s=>{ if(s===li)return false; const r=s.getBoundingClientRect(); return e.clientY<r.top+r.height/2; });
+      if(after)list.insertBefore(li,after); else list.appendChild(li); });
+    li.addEventListener("pointerup",()=>{ if(dragEl!==li)return; li.classList.remove("dragging"); dragEl=null;
+      App.myOrder=[...list.querySelectorAll("li.item")].map(x=>x.dataset.id); renderJoin(); });
+  });
+  document.getElementById("submitRank").onclick=async()=>{
+    const ranks={}; App.myOrder.forEach((id,i)=>ranks[id]=i+1);
+    const btn=document.getElementById("submitRank"); btn.disabled=true; btn.textContent="Saving…";
+    try{
+      await App.store.addVote(round,{sid:App.student.sid,name:App.student.name,ranks,ts:Date.now()});
+      toast("Ranking submitted ✓"); App.myOrder=null; renderJoin();
+    }catch(e){toast("Not saved. Check your connection and whether voting is open.");btn.disabled=false;btn.textContent="Try submitting again";}
+  };
+}
+
+/* =========================== PRESENT / RESULTS ============================ */
+function meanRanks(votes){
+  const sums={},n=votes.length; CHARACTERS.forEach(c=>sums[c.id]=0);
+  votes.forEach(v=>CHARACTERS.forEach(c=>sums[c.id]+=(v.ranks[c.id]||0)));
+  const out={}; CHARACTERS.forEach(c=>out[c.id]=n?sums[c.id]/n:0); return out;
+}
+function buildRoster(){
+  const map={}; // sid -> {name, r1, r2}
+  (App.state.votes.r1||[]).forEach(v=>{ map[v.sid]=map[v.sid]||{name:v.name}; map[v.sid].name=v.name; map[v.sid].r1=v.ranks; });
+  (App.state.votes.r2||[]).forEach(v=>{ map[v.sid]=map[v.sid]||{name:v.name}; map[v.sid].name=v.name; map[v.sid].r2=v.ranks; });
+  return Object.entries(map).map(([sid,o])=>{
+    let changed=null, disp=0;
+    if(o.r1&&o.r2){ disp=CHARACTERS.reduce((s,c)=>s+Math.abs((o.r1[c.id]||0)-(o.r2[c.id]||0)),0); changed=disp>0; }
+    return {sid,name:o.name,r1:!!o.r1,r2:!!o.r2,both:!!(o.r1&&o.r2),changed,disp,ranks1:o.r1,ranks2:o.r2};
+  }).sort((a,b)=>{
+    if(a.both!==b.both) return a.both?-1:1;
+    if((b.changed?1:0)!==(a.changed?1:0)) return (b.changed?1:0)-(a.changed?1:0);
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function renderPresent(){
+  const phase=App.state.phase;
+  const r1=App.state.votes.r1, r2=App.state.votes.r2;
+  const phaseLabel={lobby:"Lobby",r1:"Round 1 — voting",r1Reveal:"Round 1 — results",
+                    r2:"Round 2 — voting",r2Reveal:"Round 2 — results"}[phase];
+  let body="";
+  if(phase==="lobby"){
+    body=`<div class="card center" style="padding:40px 20px">
+      <h2 style="font-size:24px">Ready when you are</h2>
+      <p class="muted" style="max-width:480px;margin:12px auto 0">
+        Students join room <b class="gold">${App.room}</b>, enter their name, and wait. Start Round 1 when everyone’s checked in.</p>
+      <div style="margin-top:22px"><span class="pill">Room open — waiting to begin</span></div></div>`;
+  } else if(phase==="r1"||phase==="r2"){
+    const votes=phase==="r2"?r2:r1;
+    body=`<div class="card">
+      <div class="statrow">
+        <div class="stat"><div class="big gold">${votes.length}</div><div class="lbl">Rankings in</div></div>
+        <div class="stat"><div class="big">${phase==="r2"?"2":"1"}</div><div class="lbl">${phase==="r2"?"After discussion":"Initial vote"}</div></div>
+      </div>
+      <div style="margin:6px 2px 4px;font-weight:700;font-size:13px;color:var(--muted)">Submitted</div>
+      <div>${votes.length?votes.map(v=>`<span class="tag ok" style="margin:0 6px 6px 0">${esc(v.name)}</span>`).join(""):'<span class="muted">No one yet…</span>'}</div>
+      <div class="waitbox" style="padding:18px 10px"><div class="spinner"></div>
+        <div class="muted" style="font-size:13px">Reveal results when ready.</div></div></div>`;
+  } else if(phase==="r1Reveal"){
+    body = (App.view==="extremes") ? extremesCard(r1) : resultCard(r1,"r1");
+    body = tabsBarR1() + body;
+  } else if(phase==="r2Reveal"){
+    if(App.view==="compare") body=compareCard(r1,r2);
+    else if(App.view==="roster") body=rosterCard();
+    else body=resultCard(r2,"r2");
+    body=tabsBar()+body;
+  }
+  App.el.innerHTML=topbar()+`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span class="phasebadge">${phaseLabel}</span></div>`+body+controls();
+  wireControls();
+}
+
+function tabsBar(){
+  return `<div class="tabs">
+    <button id="tabResults" class="${App.view==="results"?"on":""}">Round 2 results</button>
+    <button id="tabCompare" class="${App.view==="compare"?"on":""}">Round 1 vs 2</button>
+    <button id="tabRoster" class="${App.view==="roster"?"on":""}">Who changed</button>
+  </div>`;
+}
+
+function tabsBarR1(){
+  return `<div class="tabs">
+    <button id="tabR1Results" class="${App.view!=="extremes"?"on":""}">Round 1 results</button>
+    <button id="tabR1Extremes" class="${App.view==="extremes"?"on":""}">Extremes by name</button>
+  </div>`;
+}
+
+function extremesCard(votes){
+  const rows=CHARACTERS.map(c=>{
+    const least=votes.filter(v=>v.ranks[c.id]===1).map(v=>v.name);
+    const most =votes.filter(v=>v.ranks[c.id]===6).map(v=>v.name);
+    return {name:c.name, least, most, contested:least.length>0&&most.length>0, total:least.length+most.length};
+  }).sort((a,b)=>b.total-a.total);
+  const rowsHtml=rows.map(r=>{
+    const L=r.least.map(n=>`<span class="chip l">${esc(n)}</span>`).join("");
+    const M=r.most.map(n=>`<span class="chip m">${esc(n)}</span>`).join("");
+    return `<div class="torrow ${r.contested?"contested":""}">
+      <div class="torside l">${L}</div>
+      <div class="torname ${r.contested?"c":""}">${r.name}${r.contested?"<small>contested</small>":""}</div>
+      <div class="torside r">${M}</div></div>`;
+  }).join("");
+  return `<div class="card"><span class="pill">Round 1 · the two extremes, by name</span>
+    <div class="torlegend">
+      <span><span class="dot" style="background:var(--good)"></span>← ranked LEAST objectionable (1)</span>
+      <span>ranked MOST objectionable (6) →<span class="dot" style="background:var(--bad);margin-left:6px;margin-right:0"></span></span>
+    </div>
+    <div class="tor">${rowsHtml}</div>
+    <div class="muted" style="font-size:12px;margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+      ⚠ Names on <b style="color:var(--ink)">both</b> sides = contested characters: reasonable people, opposite verdicts. The heart of naïve realism.</div>
+  </div>`;
+}
+
+function resultCard(votes,round){
+  const m=meanRanks(votes);
+  const order=[...CHARACTERS].sort((a,b)=>m[b.id]-m[a.id]);
+  const bars=order.map(c=>{
+    const val=m[c.id],pct=(val/6)*100;
+    return `<div class="bar"><div class="head"><span class="nm">${c.name}</span><span class="val">${val.toFixed(2)}</span></div>
+      <div class="track"><div class="fill ${round==="r2"?"r2":""}" style="width:${pct}%"></div></div></div>`;
+  }).join("");
+  return `<div class="card">
+    <div class="statrow">
+      <div class="stat"><div class="big gold">${votes.length}</div><div class="lbl">Rankings</div></div>
+      <div class="stat"><div class="big">${order[0]?NAMES[order[0].id]:"—"}</div><div class="lbl">Most objectionable</div></div>
+      <div class="stat"><div class="big">${order[5]?NAMES[order[5].id]:"—"}</div><div class="lbl">Least objectionable</div></div>
+    </div>
+    <span class="pill">${ROUND_LABEL[round]}</span>
+    <div class="muted" style="font-size:12.5px;margin:10px 2px 4px">Average rank (6 = most objectionable). Sorted most → least.</div>
+    <div class="bars">${bars}</div></div>`;
+}
+
+function compareCard(r1,r2){
+  const a=meanRanks(r1),n=meanRanks(r2);
+  const order=[...CHARACTERS].sort((x,y)=>n[y.id]-n[x.id]);
+  const rows=order.map(c=>{
+    const av=a[c.id],nv=n[c.id],d=nv-av,dtxt=(d>=0?"+":"")+d.toFixed(2);
+    const dcol=Math.abs(d)<0.15?"var(--muted)":(d>0?"var(--bad)":"var(--good)");
+    return `<div class="cmprow"><div class="nm"><span>${c.name}</span><span class="delta" style="color:${dcol}">Δ ${dtxt}</span></div>
+      <div class="mini"><div class="f" style="width:${(av/6)*100}%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-soft))"></div></div>
+      <div class="mini"><div class="f" style="width:${(nv/6)*100}%;background:linear-gradient(90deg,var(--accent-deep),var(--accent))"></div></div></div>`;
+  }).join("");
+  return `<div class="card"><span class="pill">Did the room shift after discussion?</span>
+    <div class="legend"><span><span class="dot" style="background:var(--gold-soft)"></span>Round 1 (${r1.length})</span>
+      <span><span class="dot" style="background:var(--accent)"></span>Round 2 (${r2.length})</span></div>
+    <div class="muted" style="font-size:12.5px;margin:2px 2px 12px">Δ = change in a character’s average rank between rounds. Small Δ across the board = people rarely change their minds.</div>
+    <div class="cmp">${rows}</div></div>`;
+}
+
+function rosterCard(){
+  const roster=buildRoster();
+  const both=roster.filter(r=>r.both);
+  const changed=both.filter(r=>r.changed);
+  const pct=both.length?Math.round(changed.length/both.length*100):0;
+  const rows=roster.map(r=>{
+    const r1tag=r.r1?'<span class="tag ok">✓</span>':'<span class="tag miss">—</span>';
+    const r2tag=r.r2?'<span class="tag ok">✓</span>':'<span class="tag miss">—</span>';
+    let ch='<span class="tag miss">—</span>';
+    if(r.both) ch=r.changed?`<span class="tag yes">changed</span>`:`<span class="tag no">same</span>`;
+    return `<tr><td>${esc(r.name)}</td><td>${r1tag}</td><td>${r2tag}</td><td>${ch}</td><td>${r.both?r.disp:""}</td></tr>`;
+  }).join("");
+  return `<div class="card">
+    <div class="statrow">
+      <div class="stat"><div class="big gold">${roster.length}</div><div class="lbl">Participants</div></div>
+      <div class="stat"><div class="big">${both.length}</div><div class="lbl">Voted both rounds</div></div>
+      <div class="stat"><div class="big ${changed.length?"":""}">${changed.length}</div><div class="lbl">Changed vote (${pct}%)</div></div>
+    </div>
+    <span class="pill">Participation &amp; changes</span>
+    <div class="muted" style="font-size:12.5px;margin:10px 2px 6px">“Movement” = total rank positions shifted between rounds. Higher = bigger change of mind.</div>
+    <div style="overflow-x:auto"><table class="roster">
+      <thead><tr><th>Name</th><th>R1</th><th>R2</th><th>Changed?</th><th>Movement</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5" class="muted">No submissions yet.</td></tr>'}</tbody></table></div>
+    <div style="margin-top:14px"><button class="btn small" id="csvBtn">⬇ Download roster (CSV)</button></div></div>`;
+}
+
+function downloadCSV(){
+  const roster=buildRoster();
+  const head=["Name","Round1_submitted","Round2_submitted","Changed","Movement"]
+    .concat(CHARACTERS.map(c=>c.name+"_R1")).concat(CHARACTERS.map(c=>c.name+"_R2"));
+  const lines=[head.join(",")];
+  roster.forEach(r=>{
+    const row=[csv(r.name), r.r1?"yes":"no", r.r2?"yes":"no",
+      r.both?(r.changed?"yes":"no"):"", r.both?r.disp:""]
+      .concat(CHARACTERS.map(c=>r.ranks1?(r.ranks1[c.id]||""):""))
+      .concat(CHARACTERS.map(c=>r.ranks2?(r.ranks2[c.id]||""):""));
+    lines.push(row.join(","));
+  });
+  const blob=new Blob([lines.join("\n")],{type:"text/csv"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="gold-watch-"+App.room+"-roster.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+function csv(s){ s=String(s==null?"":s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+
+/* =========================== CONTROLS ===================================== */
+function controls(){
+  const p=App.state.phase;
+  const btn=(id,label,kind="gray")=>`<button class="btn small ${kind}" id="${id}">${label}</button>`;
+  let main="";
+  if(p==="lobby") main=btn("cStart1","▶ Start Round 1 (Initial)","");
+  else if(p==="r1") main=btn("cReveal1","Reveal Round 1 results","");
+  else if(p==="r1Reveal") main=btn("cStart2","▶ Start Round 2 (After discussion)","");
+  else if(p==="r2") main=btn("cReveal2","Reveal Round 2 results","");
+  else if(p==="r2Reveal") main=btn("cBack1","◀ Show Round 1 again");
+  return `<div class="ctl">${main}${p!=="lobby"?btn("cReset","↺ Reset session"):""}
+    <button class="btn small ghost" id="cHome" style="margin-left:auto">Exit</button></div>`;
+}
+function wireControls(){
+  const set=(id,fn)=>{ const e=document.getElementById(id); if(e)e.onclick=fn; };
+  set("cStart1",()=>App.store.setPhase("r1"));
+  set("cReveal1",()=>App.store.setPhase("r1Reveal"));
+  set("cStart2",()=>App.store.setPhase("r2"));
+  set("cReveal2",()=>App.store.setPhase("r2Reveal"));
+  set("cBack1",()=>App.store.setPhase("r1Reveal"));
+  set("cReset",()=>{ if(confirm("Clear all rankings and return to the lobby?")) App.store.reset(); });
+  set("cHome",()=>location.reload());
+  set("tabR1Results",()=>{ App.view="results"; renderPresent(); });
+  set("tabR1Extremes",()=>{ App.view="extremes"; renderPresent(); });
+  set("tabResults",()=>{ App.view="results"; renderPresent(); });
+  set("tabCompare",()=>{ App.view="compare"; renderPresent(); });
+  set("tabRoster",()=>{ App.view="roster"; renderPresent(); });
+  set("csvBtn",downloadCSV);
+}
+
+/* =========================== ROUTER ======================================= */
+function rerender(){
+  if(!App.role){ renderLanding(); return; }
+  if(App.lastPhase!==App.state.phase){ App.view="results"; App.lastPhase=App.state.phase; }
+  if(App.state.phase==="r1"||App.state.phase==="r2"){ /* keep myOrder while ranking */ }
+  else { App.myOrder=null; }
+  if(App.role==="present") renderPresent(); else renderJoin();
+}
+
+function boot(){
+  const params=new URLSearchParams(location.search);
+  const urlRoom=(params.get("room")||"").trim().toUpperCase().replace(/\s+/g,"");
+  const urlRole=(params.get("role")||"").toLowerCase();
+  if(urlRoom && urlRole==="present"){ start("present", urlRoom); return; }
+  if(urlRoom){ start("join", urlRoom); return; }   // student link: room fixed, no typing
+  renderLanding();
+}
+
+(async function(){
+  if(!FB_ON){boot();return;}
+  try{
+    for(const module of ["app","auth","database"]){
+      await new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://www.gstatic.com/firebasejs/9.23.0/firebase-"+module+"-compat.js";script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});
+    }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    await new Promise(resolve=>{const off=firebase.auth().onAuthStateChanged(()=>{off();resolve();});});
+    boot();
+  }catch(e){App.el.innerHTML='<div class="card">Unable to connect. Check your internet connection and reload this page.</div>';}
+})();
+</script>
+</body>
+</html>
