@@ -195,17 +195,22 @@ function makeFirebaseStore(room){
   const state={phase:"lobby",votes:{r1:[],r2:[]}};
   let notify=()=>{};
   const report=()=>notify({phase:state.phase,votes:{r1:[...state.votes.r1],r2:[...state.votes.r2]}});
+  const subscriptions=[];
   const error=()=>toast("Connection or permission error. Please try again.");
   return {
     mode:"live",
     onState(cb){
       notify=cb;
-      base.child("phase").on("value",snap=>{state.phase=snap.val()||"lobby"; report();},error);
+      const phaseRef=base.child("phase");
+      const phaseHandler=snap=>{state.phase=snap.val()||"lobby"; report();};
+      phaseRef.on("value",phaseHandler,error);subscriptions.push([phaseRef,phaseHandler]);
       for(const round of ["r1","r2"]){
         const ref=base.child("votes/"+round+(App.role==="present"?"":"/"+mine));
-        ref.on("value",snap=>{const v=snap.val();state.votes[round]=App.role==="present"?Object.values(v||{}):(v?[v]:[]);report();},error);
+        const handler=snap=>{const v=snap.val();state.votes[round]=App.role==="present"?Object.values(v||{}):(v?[v]:[]);report();};
+        ref.on("value",handler,error);subscriptions.push([ref,handler]);
       }
     },
+    dispose(){subscriptions.forEach(([ref,handler])=>ref.off("value",handler));notify=()=>{};},
     setPhase(p){return base.child("phase").set(p).catch(error);},
     async addVote(round,vote){
       const session=(await base.child("session").once("value")).val();
@@ -253,6 +258,7 @@ function renderLanding(){
   </div>
   <div class="card" style="margin-top:22px">
     ${resume}
+    <button class="btn block ghost" id="instructorRooms" style="margin-bottom:20px">Instructor rooms · reopen saved sessions</button>
     <label class="muted" style="font-size:13px;font-weight:600">Room code</label>
     <input id="room" class="field" style="margin-top:6px;text-transform:uppercase;letter-spacing:4px;font-weight:700"
        maxlength="6" placeholder="MO101" value="${esc(defRoom)}" />
@@ -264,12 +270,13 @@ function renderLanding(){
     </div>
   </div>
   <div class="footnote">Management &amp; Organizations · Conflict session</div>`;
+  document.getElementById("instructorRooms").onclick=()=>renderInstructorRooms();
   document.getElementById("goPresent").onclick=()=>start("present");
   document.getElementById("goJoin").onclick=()=>start("join");
   const rb=document.getElementById("resumeBtn"); if(rb) rb.onclick=()=>start(last.role,last.room);
 }
 
-async function start(role, roomOverride){
+async function start(role, roomOverride, existingOnly=false){
   if(App.starting)return;
   let room=(roomOverride||document.getElementById("room")?.value||"MO101").trim().toUpperCase();
   if(!/^[A-Z0-9]{3,6}$/.test(room)){toast("Use a room code of 3–6 letters or numbers.");return;}
@@ -278,16 +285,20 @@ async function start(role, roomOverride){
     if(FB_ON){
       const auth=firebase.auth();
       if(role==="present"){
-        if(!auth.currentUser||auth.currentUser.isAnonymous){
-          await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        }
-        const allowed=await firebase.database().ref("instructors/"+auth.currentUser.uid).once("value");
-        if(allowed.val()!==true)throw new Error("This account is not authorized as an instructor.");
+        await requireInstructor();
         const base=firebase.database().ref("rooms/"+room);
-        await base.transaction(v=>v||{phase:"lobby",session:crypto.randomUUID()});
+        const saved=await base.once("value");
+        if(!saved.exists()){
+          if(existingOnly)throw new Error("That saved room was not found. Check the room code.");
+          // Abort if another instructor has created the room in the meantime.
+          // Existing rooms must never be rewritten when reopening saved votes.
+          await base.transaction(current=>current===null?{phase:"lobby",session:crypto.randomUUID()}:undefined);
+        }
       }else if(!auth.currentUser){await auth.signInAnonymously();}
     }
+    App.store?.dispose?.();
     App.room=room; App.role=role;
+    if(role==="present")rememberInstructorRoom(room);
     App.store=FB_ON?makeFirebaseStore(room):makeLocalStore(room);
     if(role==="join"){
       try{App.student=JSON.parse(localStorage.getItem("goldwatch:profile"))||null;}catch(e){App.student=null;}
@@ -296,8 +307,76 @@ async function start(role, roomOverride){
     try{localStorage.setItem("goldwatch:last",JSON.stringify({room,role}));}catch(e){}
     App.store.onState(s=>{App.state=s;rerender();});
     rerender();
-  }catch(e){toast(e.message||"Could not connect. Please try again.");}
+  }catch(e){if(role==="present")renderInstructorError(e,()=>start(role,room,existingOnly));else toast(e.message||"Could not connect. Please try again.");}
   finally{App.starting=false;}
+}
+
+
+/* ======================= INSTRUCTOR ROOM LIBRARY =========================== */
+async function requireInstructor(forceAccount=false){
+  if(!FB_ON)return;
+  const auth=firebase.auth();
+  if(forceAccount||!auth.currentUser||auth.currentUser.isAnonymous){
+    const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:"select_account"});
+    await auth.signInWithPopup(provider);
+  }
+  const allowed=await firebase.database().ref("instructors/"+auth.currentUser.uid).once("value");
+  if(allowed.val()!==true)throw new Error("This Google account is not authorized as an instructor. Choose your instructor account.");
+}
+function rememberInstructorRoom(room){
+  try{
+    const rooms=JSON.parse(localStorage.getItem("goldwatch:instructorRooms")||"{}");
+    rooms[room]={openedAt:Date.now()};
+    localStorage.setItem("goldwatch:instructorRooms",JSON.stringify(rooms));
+  }catch(e){}
+}
+function rememberedInstructorRooms(){
+  let rooms={};
+  try{rooms=JSON.parse(localStorage.getItem("goldwatch:instructorRooms")||"{}");}catch(e){}
+  try{const last=JSON.parse(localStorage.getItem("goldwatch:last"));if(last?.role==="present"&&last.room)rooms[last.room]=rooms[last.room]||{};}catch(e){}
+  return rooms;
+}
+function leaveRoom(){
+  App.store?.dispose?.();App.store=null;App.role=null;App.room=null;App.state=null;App.lastPhase=null;
+  history.replaceState(null,"",location.pathname+"?role=present");
+  return renderInstructorRooms();
+}
+function renderInstructorError(error,retry){
+  App.el.innerHTML=`<div class="hero"><h1>Instructor access</h1></div><div class="card"><p>${esc(error.message||"Could not connect. Please try again.")}</p><p class="muted">Use the Google account authorized for this classroom app. Saved rooms are not cleared when you leave.</p><button class="btn" id="retryInstructor">Try again</button> <button class="btn ghost" id="switchInstructor">Choose Google account</button> <button class="btn ghost" id="accessHome">Home</button></div>`;
+  document.getElementById("retryInstructor").onclick=retry;
+  document.getElementById("switchInstructor").onclick=async()=>{try{await requireInstructor(true);await retry();}catch(e){renderInstructorError(e,retry);}};
+  document.getElementById("accessHome").onclick=renderLanding;
+}
+async function renderInstructorRooms(){
+  App.store?.dispose?.();App.store=null;App.role=null;App.room=null;
+  App.el.innerHTML='<div class="card">Opening instructor rooms…</div>';
+  try{
+    await requireInstructor();
+    let rooms={},limited=false;
+    if(FB_ON){
+      try{rooms=(await firebase.database().ref("rooms").once("value")).val()||{};}
+      catch(e){
+        if(!/permission.denied/i.test(e.code||e.message||""))throw e;
+        limited=true;
+        for(const room of Object.keys(rememberedInstructorRooms())){
+          if(!/^[A-Z0-9]{3,6}$/.test(room))continue;
+          const saved=await firebase.database().ref("rooms/"+room).once("value");
+          if(saved.exists())rooms[room]=saved.val();
+        }
+      }
+    }else{
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^goldwatch:[A-Z0-9]{3,6}$/.test(k))rooms[k.slice(10)]=JSON.parse(localStorage.getItem(k));}
+    }
+    const phases={lobby:"Lobby",r1:"Round 1 · voting",r1Reveal:"Round 1 · results",r2:"Round 2 · voting",r2Reveal:"Round 2 · results"};
+    const codes=Object.keys(rooms).filter(room=>/^[A-Z0-9]{3,6}$/.test(room)).sort();
+    App.el.innerHTML=`<div class="hero"><h1>Instructor rooms</h1><p>Reopen a saved session to see its results, roster, or comparison. Leaving a room keeps its rankings saved.</p></div><div class="card"><h2>Saved rooms</h2><p class="muted">${FB_ON?"Instructor access verified":"Offline demo"}${limited?" · Showing rooms remembered in this browser. You can also reopen any saved room by its code below.":""}</p><div>${codes.length?codes.map(room=>{const v=rooms[room].votes||{};return `<div style="display:flex;gap:12px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:16px 0"><div><strong class="gold">${esc(room)}</strong><div class="muted">${esc(phases[rooms[room].phase]||"Saved session")} · Round 1: ${Object.keys(v.r1||{}).length} · Round 2: ${Object.keys(v.r2||{}).length}</div></div><button class="btn small" data-reopen="${esc(room)}">Reopen</button></div>`;}).join(""):'<p class="muted">No saved rooms found yet. Enter an existing room code below, or create a room.</p>'}</div></div><div class="card"><label for="savedRoomCode">Room code</label><input class="field" id="savedRoomCode" placeholder="MO101" maxlength="6" style="margin:8px 0 14px;text-transform:uppercase"><button class="btn" id="openSavedRoom">Reopen saved room</button> <button class="btn ghost" id="createRoom">Create / open room</button></div><button class="btn ghost" id="roomLibraryHome">Home</button>`;
+    for(const button of App.el.querySelectorAll("[data-reopen]"))button.onclick=()=>start("present",button.dataset.reopen,true);
+    document.getElementById("openSavedRoom").onclick=()=>{const room=document.getElementById("savedRoomCode").value.trim();if(!room){toast("Enter the saved room code first.");return;}start("present",room,true);};
+    document.getElementById("createRoom").onclick=()=>{const room=document.getElementById("savedRoomCode").value.trim();if(!room){toast("Enter a room code first.");return;}start("present",room);};
+    document.getElementById("roomLibraryHome").onclick=renderLanding;
+    history.replaceState(null,"",location.pathname+"?role=present");
+  }catch(e){renderInstructorError(e,renderInstructorRooms);}
 }
 
 /* =========================== JOIN (student) =============================== */
@@ -608,7 +687,7 @@ function controls(){
   else if(p==="r2") main=btn("cReveal2","Reveal Round 2 results","");
   else if(p==="r2Reveal") main=btn("cBack1","◀ Show Round 1 again");
   return `<div class="ctl">${main}${p!=="lobby"?btn("cReset","↺ Reset session"):""}
-    <button class="btn small ghost" id="cHome" style="margin-left:auto">Exit</button></div>`;
+    <button class="btn small ghost" id="cHome" style="margin-left:auto">Instructor rooms</button></div>`;
 }
 function wireControls(){
   const set=(id,fn)=>{ const e=document.getElementById(id); if(e)e.onclick=fn; };
@@ -618,7 +697,7 @@ function wireControls(){
   set("cReveal2",()=>App.store.setPhase("r2Reveal"));
   set("cBack1",()=>App.store.setPhase("r1Reveal"));
   set("cReset",()=>{ if(confirm("Clear all rankings and return to the lobby?")) App.store.reset(); });
-  set("cHome",()=>location.reload());
+  set("cHome",leaveRoom);
   set("tabR1Results",()=>{ App.view="results"; renderPresent(); });
   set("tabR1Extremes",()=>{ App.view="extremes"; renderPresent(); });
   set("tabResults",()=>{ App.view="results"; renderPresent(); });
@@ -640,6 +719,7 @@ function boot(){
   const params=new URLSearchParams(location.search);
   const urlRoom=(params.get("room")||"").trim().toUpperCase().replace(/\s+/g,"");
   const urlRole=(params.get("role")||"").toLowerCase();
+  if(!urlRoom && urlRole==="present"){renderInstructorRooms();return;}
   if(urlRoom && urlRole==="present"){ start("present", urlRoom); return; }
   if(urlRoom){ start("join", urlRoom); return; }   // student link: room fixed, no typing
   renderLanding();
